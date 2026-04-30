@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pelacak Pekerjaan & Workflow</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a;background:#f5f5f3;min-height:100vh}
+
+  .header{background:#fff;border-bottom:1px solid #e5e5e2;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+  .header-left h1{font-size:17px;font-weight:600;color:#185FA5}
+  .header-left p{font-size:12px;color:#888;margin-top:2px}
+
+  .btn{padding:8px 16px;border-radius:8px;border:1px solid #d0d0cc;background:#fff;color:#1a1a1a;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.15s}
+  .btn:hover{background:#f0f0ee}
+  .btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+  .btn-primary:hover{background:#0C447C}
+  .btn-danger{background:#A32D2D;color:#fff;border-color:#A32D2D}
+  .btn-danger:hover{background:#791F1F}
+  .btn-sm{padding:4px 10px;font-size:12px}
+  .btn-export{background:#27500A;color:#fff;border-color:#27500A}
+  .btn-export:hover{background:#3B6D11}
+
+  .stats-bar{display:flex;gap:10px;padding:14px 20px;flex-wrap:wrap;background:#f5f5f3;border-bottom:1px solid #e5e5e2}
+  .stat{background:#fff;border:1px solid #e5e5e2;border-radius:10px;padding:10px 16px;min-width:110px;flex:1}
+  .stat-label{font-size:11px;color:#888;margin-bottom:2px}
+  .stat-val{font-size:22px;font-weight:600}
+  .stat-val.green{color:#27500A}
+  .stat-val.amber{color:#633806}
+  .stat-val.blue{color:#0C447C}
+  .stat-val.red{color:#791F1F}
+
+  .toolbar{padding:10px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;border-bottom:1px solid #e5e5e2}
+  .toolbar input,.toolbar select{font-size:13px;padding:7px 11px;border:1px solid #d0d0cc;border-radius:8px;background:#fff;color:#1a1a1a;outline:none}
+  .toolbar input{flex:1;min-width:180px}
+  .toolbar input:focus,.toolbar select:focus{border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,0.12)}
+
+  .table-wrap{overflow-x:auto;padding:0 0 80px}
+  table{width:100%;border-collapse:collapse;min-width:960px;background:#fff}
+  th{background:#f5f5f3;padding:9px 12px;text-align:left;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e5e5e2;white-space:nowrap;position:sticky;top:65px;z-index:10}
+  td{padding:8px 12px;border-bottom:1px solid #f0f0ee;vertical-align:middle;white-space:nowrap}
+  tr:hover td{background:#fafaf8}
+
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-LENGKAP{background:#EAF3DE;color:#27500A}
+  .badge-PROSES{background:#FAEEDA;color:#633806}
+  .badge-PENDING{background:#E6F1FB;color:#0C447C}
+  .badge-BATAL{background:#FCEBEB;color:#791F1F}
+
+  /* Modal */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:16px}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:24px;width:min(580px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.18)}
+  .modal h2{font-size:16px;font-weight:600;margin-bottom:18px;color:#185FA5}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.form-grid{grid-template-columns:1fr}}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group label{font-size:12px;color:#555;font-weight:600}
+  .form-group input,.form-group select,.form-group textarea{font-size:13px;padding:8px 11px;border:1px solid #d0d0cc;border-radius:8px;background:#fff;color:#1a1a1a;outline:none;width:100%}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,0.12)}
+  .form-group.full{grid-column:1/-1}
+  .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;padding-top:14px;border-top:1px solid #f0f0ee}
+
+  .empty{text-align:center;padding:60px 20px;color:#aaa;font-size:14px}
+  .actions{display:flex;gap:5px}
+
+  /* Mobile card view */
+  @media(max-width:700px){
+    .table-wrap{display:none}
+    .card-list{display:block;padding:12px;padding-bottom:80px}
+    .job-card{background:#fff;border:1px solid #e5e5e2;border-radius:12px;padding:14px;margin-bottom:10px}
+    .job-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+    .job-card-title{font-weight:600;font-size:14px}
+    .job-card-sub{font-size:12px;color:#888;margin-top:2px}
+    .job-card-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f5f5f3}
+    .job-card-row:last-child{border-bottom:none}
+    .job-card-label{color:#888}
+    .job-card-val{font-weight:500;text-align:right}
+    .job-card-footer{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+  }
+  @media(min-width:701px){
+    .card-list{display:none}
+  }
+
+  .fab{position:fixed;bottom:24px;right:20px;z-index:100;display:none}
+  @media(max-width:700px){.fab{display:block}}
+  .fab button{width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:26px;cursor:pointer;box-shadow:0 4px 16px rgba(24,95,165,0.35)}
+
+  .no-mobile{display:block}
+  @media(max-width:700px){.no-mobile{display:none}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Pelacak Pekerjaan & Workflow</h1>
+    <p>Kelola dan pantau status pekerjaan Anda</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-export no-mobile" onclick="exportCSV()">&#8595; Export CSV</button>
+    <button class="btn btn-primary no-mobile" onclick="openModal()">+ Tambah Pekerjaan</button>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-label">Total Pekerjaan</div><div class="stat-val" id="s-total">0</div></div>
+  <div class="stat"><div class="stat-label">Lengkap</div><div class="stat-val green" id="s-lengkap">0</div></div>
+  <div class="stat"><div class="stat-label">Proses</div><div class="stat-val amber" id="s-proses">0</div></div>
+  <div class="stat"><div class="stat-label">Pending</div><div class="stat-val blue" id="s-pending">0</div></div>
+  <div class="stat"><div class="stat-label">Total GT (Rp)</div><div class="stat-val" id="s-gt" style="font-size:15px">0</div></div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Cari pelanggan, kontak, kapal, PO..." oninput="render()">
+  <select id="filter-status" onchange="render()">
+    <option value="">Semua Status</option>
+    <option value="LENGKAP">Lengkap</option>
+    <option value="PROSES">Proses</option>
+    <option value="PENDING">Pending</option>
+    <option value="BATAL">Batal</option>
+  </select>
+  <select id="filter-penawaran" onchange="render()">
+    <option value="">Semua Penawaran</option>
+  </select>
+  <select id="sort-col" onchange="render()">
+    <option value="tgl">Urut: Tanggal</option>
+    <option value="customer">Urut: Pelanggan</option>
+    <option value="gt">Urut: GT</option>
+  </select>
+</div>
+
+<!-- Desktop Table -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Tanggal</th>
+        <th>Penawaran Cur</th>
+        <th>No. PO</th>
+        <th>Pelanggan</th>
+        <th>Kontak</th>
+        <th>Kapal / Vessel</th>
+        <th>GT (Rp)</th>
+        <th>Tujuan</th>
+        <th>Total Item</th>
+        <th>Supplay</th>
+        <th>BO</th>
+        <th>Status</th>
+        <th>Catatan</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="tbl-body"></tbody>
+  </table>
+  <div id="empty-state" class="empty" style="display:none">&#128269; Tidak ada data yang cocok.</div>
+</div>
+
+<!-- Mobile Card List -->
+<div class="card-list" id="card-list"></div>
+<div id="empty-mobile" class="empty" style="display:none;padding:40px 20px">&#128269; Tidak ada data yang cocok.</div>
+
+<!-- FAB for mobile -->
+<div class="fab"><button onclick="openModal()" title="Tambah">+</button></div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h2 id="modal-title">Tambah Pekerjaan Baru</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tanggal</label>
+        <input type="date" id="f-tgl">
+      </div>
+      <div class="form-group">
+        <label>Penawaran Cur</label>
+        <input type="text" id="f-penawaran" placeholder="cth. LRTI/0014/PO26">
+      </div>
+      <div class="form-group">
+        <label>No. PO</label>
+        <input type="text" id="f-po" placeholder="cth. QP-2604045">
+      </div>
+      <div class="form-group">
+        <label>Pelanggan</label>
+        <input type="text" id="f-customer" placeholder="Nama pelanggan">
+      </div>
+      <div class="form-group">
+        <label>Kontak</label>
+        <input type="text" id="f-kontak" placeholder="Nama kontak">
+      </div>
+      <div class="form-group">
+        <label>Kapal / Vessel</label>
+        <input type="text" id="f-kapal" placeholder="Nama kapal">
+      </div>
+      <div class="form-group">
+        <label>GT (Rp)</label>
+        <input type="number" id="f-gt" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Tujuan</label>
+        <input type="text" id="f-tujuan" placeholder="cth. MERATUS WAKATOBI">
+      </div>
+      <div class="form-group">
+        <label>Total Item</label>
+        <input type="number" id="f-totalitem" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Supplay</label>
+        <input type="number" id="f-supplay" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>BO</label>
+        <input type="number" id="f-bo" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="PROSES">Proses</option>
+          <option value="PENDING">Pending</option>
+          <option value="LENGKAP">Lengkap</option>
+          <option value="BATAL">Batal</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Catatan</label>
+        <textarea id="f-catatan" rows="2" placeholder="Catatan tambahan..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveJob()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE = [
+  {id:1,tgl:'2025-12-05',penawaran:'24PO-25-004847',po:'MITRA SENTOSA ABADI',customer:'MITRA SENTOSA ABADI',kontak:'MELISSA AYU AGUSTEN',kapal:'MDM BARABAI',gt:32483101,tujuan:'',totalitem:0,supplay:0,bo:0,status:'LENGKAP',catatan:''},
+  {id:2,tgl:'2026-01-22',penawaran:'LRTI/0014/PO26',po:'',customer:'MERATUS LINE',kontak:'FERRY LOE',kapal:'MERATUS LARANTUKA',gt:205780010,tujuan:'',totalitem:47,supplay:47,bo:0,status:'LENGKAP',catatan:''},
+  {id:3,tgl:'2026-03-10',penawaran:'QP-2603036',po:'QP-260081/PO26',customer:'MERATUS LINE',kontak:'NELLI ASTUTI',kapal:'MERATUS KARIANGAU',gt:0,tujuan:'',totalitem:0,supplay:0,bo:0,status:'PROSES',catatan:''},
+  {id:4,tgl:'2026-04-13',penawaran:'LBI/O019/RF26',po:'WBI/O021/PO26',customer:'MERATUS LINE',kontak:'RONY SETYAWAN',kapal:'MERATUS WAKATOBI',gt:0,tujuan:'WH. JAKUT',totalitem:38,supplay:38,bo:0,status:'PROSES',catatan:'PROSES'},
+  {id:5,tgl:'2026-04-14',penawaran:'LBI/O010/RF84',po:'',customer:'MERATUS LINE',kontak:'FERRY LOE',kapal:'',gt:23870100,tujuan:'WH. JAKUT',totalitem:20,supplay:20,bo:0,status:'PENDING',catatan:''},
+  {id:6,tgl:'2026-04-16',penawaran:'QP-2604045',po:'',customer:'MERATUS LINE',kontak:'NOVITA PUSPANINGRUM',kapal:'MERATUS KARIMATA',gt:0,tujuan:'',totalitem:0,supplay:0,bo:0,status:'PENDING',catatan:''},
+];
+
+let jobs = [];
+let editId = null;
+let nextId = 1;
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem('wf_jobs_v2');
+    if(raw){ jobs = JSON.parse(raw); }
+    else { jobs = JSON.parse(JSON.stringify(SAMPLE)); }
+    nextId = Math.max(...jobs.map(j=>j.id), 0) + 1;
+  } catch(e){ jobs = JSON.parse(JSON.stringify(SAMPLE)); }
+}
+
+function saveData(){
+  try{ localStorage.setItem('wf_jobs_v2', JSON.stringify(jobs)); } catch(e){}
+}
+
+function fmt(n){ return n ? Number(n).toLocaleString('id-ID') : '—'; }
+
+function badgeHTML(s){
+  return `<span class="badge badge-${s}">${s}</span>`;
+}
+
+function getFiltered(){
+  const q = (document.getElementById('search').value||'').toLowerCase();
+  const fs = document.getElementById('filter-status').value;
+  const fp = document.getElementById('filter-penawaran').value;
+  const sc = document.getElementById('sort-col').value;
+
+  let list = [...jobs];
+  if(q) list = list.filter(j=>[j.penawaran,j.po,j.customer,j.kontak,j.kapal,j.tujuan,j.catatan].join(' ').toLowerCase().includes(q));
+  if(fs) list = list.filter(j=>j.status===fs);
+  if(fp) list = list.filter(j=>j.penawaran===fp);
+  if(sc==='customer') list.sort((a,b)=>a.customer.localeCompare(b.customer));
+  else if(sc==='gt') list.sort((a,b)=>b.gt-a.gt);
+  else list.sort((a,b)=>b.tgl.localeCompare(a.tgl));
+  return list;
+}
+
+function render(){
+  // Update penawaran dropdown
+  const penSet = [...new Set(jobs.map(j=>j.penawaran).filter(Boolean))];
+  const sel = document.getElementById('filter-penawaran');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Semua Penawaran</option>';
+  penSet.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; if(p===cur) o.selected=true; sel.appendChild(o); });
+
+  // Stats
+  document.getElementById('s-total').textContent = jobs.length;
+  document.getElementById('s-lengkap').textContent = jobs.filter(j=>j.status==='LENGKAP').length;
+  document.getElementById('s-proses').textContent = jobs.filter(j=>j.status==='PROSES').length;
+  document.getElementById('s-pending').textContent = jobs.filter(j=>j.status==='PENDING').length;
+  const totalGT = jobs.reduce((a,j)=>a+(Number(j.gt)||0),0);
+  document.getElementById('s-gt').textContent = totalGT ? 'Rp '+totalGT.toLocaleString('id-ID') : '0';
+
+  const list = getFiltered();
+
+  // Desktop table
+  const tbody = document.getElementById('tbl-body');
+  tbody.innerHTML = '';
+  document.getElementById('empty-state').style.display = list.length ? 'none' : 'block';
+  list.forEach((j,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#aaa">${i+1}</td>
+      <td>${j.tgl||'—'}</td>
+      <td style="font-weight:600;color:#185FA5">${j.penawaran||'—'}</td>
+      <td style="color:#888">${j.po||'—'}</td>
+      <td>${j.customer||'—'}</td>
+      <td>${j.kontak||'—'}</td>
+      <td>${j.kapal||'—'}</td>
+      <td style="text-align:right">${fmt(j.gt)}</td>
+      <td>${j.tujuan||'—'}</td>
+      <td style="text-align:center">${j.totalitem||'—'}</td>
+      <td style="text-align:center">${j.supplay||'—'}</td>
+      <td style="text-align:center">${j.bo||'—'}</td>
+      <td>${badgeHTML(j.status)}</td>
+      <td style="color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis">${j.catatan||'—'}</td>
+      <td class="actions">
+        <button class="btn btn-sm" onclick="editJob(${j.id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteJob(${j.id})">Hapus</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Mobile cards
+  const cardList = document.getElementById('card-list');
+  cardList.innerHTML = '';
+  document.getElementById('empty-mobile').style.display = list.length ? 'none' : 'block';
+  list.forEach(j=>{
+    const div = document.createElement('div');
+    div.className = 'job-card';
+    div.innerHTML = `
+      <div class="job-card-header">
+        <div>
+          <div class="job-card-title">${j.customer||'—'}</div>
+          <div class="job-card-sub">${j.penawaran||'—'} &bull; ${j.tgl||'—'}</div>
+        </div>
+        ${badgeHTML(j.status)}
+      </div>
+      <div class="job-card-row"><span class="job-card-label">Kapal</span><span class="job-card-val">${j.kapal||'—'}</span></div>
+      <div class="job-card-row"><span class="job-card-label">Kontak</span><span class="job-card-val">${j.kontak||'—'}</span></div>
+      <div class="job-card-row"><span class="job-card-label">No. PO</span><span class="job-card-val">${j.po||'—'}</span></div>
+      <div class="job-card-row"><span class="job-card-label">GT</span><span class="job-card-val">${fmt(j.gt)}</span></div>
+      <div class="job-card-row"><span class="job-card-label">Item / Supplay / BO</span><span class="job-card-val">${j.totalitem||0} / ${j.supplay||0} / ${j.bo||0}</span></div>
+      ${j.catatan ? `<div class="job-card-row"><span class="job-card-label">Catatan</span><span class="job-card-val">${j.catatan}</span></div>` : ''}
+      <div class="job-card-footer">
+        <button class="btn btn-sm" onclick="editJob(${j.id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteJob(${j.id})">Hapus</button>
+      </div>`;
+    cardList.appendChild(div);
+  });
+}
+
+function openModal(){
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Tambah Pekerjaan Baru';
+  ['tgl','penawaran','po','customer','kontak','kapal','gt','tujuan','totalitem','supplay','bo','catatan'].forEach(f=>{ document.getElementById('f-'+f).value=''; });
+  document.getElementById('f-status').value = 'PROSES';
+  document.getElementById('f-tgl').value = new Date().toISOString().split('T')[0];
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function editJob(id){
+  const j = jobs.find(x=>x.id===id);
+  if(!j) return;
+  editId = id;
+  document.getElementById('modal-title').textContent = 'Edit Pekerjaan';
+  document.getElementById('f-tgl').value = j.tgl||'';
+  document.getElementById('f-penawaran').value = j.penawaran||'';
+  document.getElementById('f-po').value = j.po||'';
+  document.getElementById('f-customer').value = j.customer||'';
+  document.getElementById('f-kontak').value = j.kontak||'';
+  document.getElementById('f-kapal').value = j.kapal||'';
+  document.getElementById('f-gt').value = j.gt||'';
+  document.getElementById('f-tujuan').value = j.tujuan||'';
+  document.getElementById('f-totalitem').value = j.totalitem||'';
+  document.getElementById('f-supplay').value = j.supplay||'';
+  document.getElementById('f-bo').value = j.bo||'';
+  document.getElementById('f-status').value = j.status||'PROSES';
+  document.getElementById('f-catatan').value = j.catatan||'';
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+
+function saveJob(){
+  const obj = {
+    id: editId || nextId++,
+    tgl: document.getElementById('f-tgl').value,
+    penawaran: document.getElementById('f-penawaran').value,
+    po: document.getElementById('f-po').value,
+    customer: document.getElementById('f-customer').value,
+    kontak: document.getElementById('f-kontak').value,
+    kapal: document.getElementById('f-kapal').value,
+    gt: Number(document.getElementById('f-gt').value)||0,
+    tujuan: document.getElementById('f-tujuan').value,
+    totalitem: Number(document.getElementById('f-totalitem').value)||0,
+    supplay: Number(document.getElementById('f-supplay').value)||0,
+    bo: Number(document.getElementById('f-bo').value)||0,
+    status: document.getElementById('f-status').value,
+    catatan: document.getElementById('f-catatan').value,
+  };
+  if(editId){ const i=jobs.findIndex(j=>j.id===editId); if(i>=0) jobs[i]=obj; }
+  else jobs.push(obj);
+  saveData(); closeModal(); render();
+}
+
+function deleteJob(id){
+  if(!confirm('Hapus pekerjaan ini?')) return;
+  jobs = jobs.filter(j=>j.id!==id);
+  saveData(); render();
+}
+
+function exportCSV(){
+  const headers = ['Tanggal','Penawaran Cur','No. PO','Pelanggan','Kontak','Kapal','GT','Tujuan','Total Item','Supplay','BO','Status','Catatan'];
+  const rows = jobs.map(j=>[j.tgl,j.penawaran,j.po,j.customer,j.kontak,j.kapal,j.gt,j.tujuan,j.totalitem,j.supplay,j.bo,j.status,j.catatan].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pekerjaan-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+}
+
+document.getElementById('modal-bg').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+
+loadData();
+render();
+</script>
+</body>
+</html>
